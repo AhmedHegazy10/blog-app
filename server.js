@@ -25,7 +25,9 @@ if (process.env.NODE_ENV !== "production") {
   });
 } else {
   // ─── Vercel Serverless ──────────────────────────────────────────────────────
-  connectDB();
+  connectDB().catch((err) => {
+    console.error("MongoDB bootstrap error:", err.message);
+  });
 }
 
 module.exports = app;
