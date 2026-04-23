@@ -63,27 +63,32 @@ exports.getAllPosts = async (req, res, next) => {
         ]}
       : {};
 
-    // Find groups the user belongs to
-    let accessibleGroupIds = [];
-    if (req.user.role === "super-admin") {
-      const allGroups = await Group.find().select("_id");
-      accessibleGroupIds = allGroups.map((g) => g._id);
-    } else {
-      const userGroups = await Group.find({
+    let visibilityFilter = { group: null };
+
+    if (req.user) {
+      let accessibleGroupIds = [];
+
+      if (req.user.role === "super-admin") {
+        const allGroups = await Group.find().select("_id");
+        accessibleGroupIds = allGroups.map((g) => g._id);
+      } else {
+        const userGroups = await Group.find({
+          $or: [{ members: req.user._id }, { admins: req.user._id }],
+        }).select("_id");
+        accessibleGroupIds = userGroups.map((g) => g._id);
+      }
+
+      visibilityFilter = {
         $or: [
-          { members: req.user._id },
-          { admins: req.user._id },
+          { group: null },
+          { group: { $in: accessibleGroupIds } },
         ],
-      }).select("_id");
-      accessibleGroupIds = userGroups.map((g) => g._id);
+      };
     }
 
     const filter = {
       ...searchQuery,
-      $or: [
-        { group: null },                           // Global posts
-        { group: { $in: accessibleGroupIds } },    // Accessible group posts
-      ],
+      ...visibilityFilter,
     };
 
     const total = await Post.countDocuments(filter);

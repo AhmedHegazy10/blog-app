@@ -2,17 +2,22 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/user.model");
 const AppError = require("../utils/AppError");
 
+const getTokenFromHeader = (req) => {
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    return req.headers.authorization.split(" ")[1];
+  }
+
+  return null;
+};
+
 // ─── Protect: verify JWT and attach user to req ───────────────────────────────
 const protect = async (req, res, next) => {
   try {
     // 1) Get token from header
-    let token;
-    if (
-      req.headers.authorization &&
-      req.headers.authorization.startsWith("Bearer")
-    ) {
-      token = req.headers.authorization.split(" ")[1];
-    }
+    const token = getTokenFromHeader(req);
 
     if (!token) {
       return next(new AppError("You are not logged in. Please log in to get access.", 401));
@@ -41,6 +46,27 @@ const protect = async (req, res, next) => {
   }
 };
 
+const optionalProtect = async (req, res, next) => {
+  try {
+    const token = getTokenFromHeader(req);
+
+    if (!token) {
+      return next();
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const currentUser = await User.findById(decoded.id);
+
+    if (currentUser) {
+      req.user = currentUser;
+    }
+
+    next();
+  } catch (error) {
+    next();
+  }
+};
+
 // ─── RestrictTo: role-based access control ────────────────────────────────────
 const restrictTo = (...roles) => {
   return (req, res, next) => {
@@ -56,4 +82,4 @@ const restrictTo = (...roles) => {
   };
 };
 
-module.exports = { protect, restrictTo };
+module.exports = { protect, optionalProtect, restrictTo };

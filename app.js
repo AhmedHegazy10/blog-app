@@ -2,6 +2,7 @@ const express = require("express");
 const rateLimit = require("express-rate-limit");
 const globalErrorHandler = require("./middleware/error.middleware");
 const AppError = require("./utils/AppError");
+const connectDB = require("./config/db");
 
 const authRoutes = require("./routes/auth.routes");
 const userRoutes = require("./routes/user.routes");
@@ -25,6 +26,15 @@ app.use((req, res, next) => {
 // ─── Body Parser ──────────────────────────────────────────────────────────────
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true }));
+
+app.use("/api", async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 // ─── Rate Limiting (Bonus Feature) ───────────────────────────────────────────
 const limiter = rateLimit({
